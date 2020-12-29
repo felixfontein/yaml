@@ -361,6 +361,9 @@ func (emitter *yamlEmitter) emitStreamStart(event *yamlEvent) bool {
 // Expect DOCUMENT-START or STREAM-END.
 func (emitter *yamlEmitter) emitDocumentStart(event *yamlEvent, first bool) bool {
 	if event.typ == yaml_DOCUMENT_START_EVENT {
+		// The next element has been parsed because yaml_emitter_need_more_events() demands
+		// one more element for yaml_DOCUMENT_START_EVENT (accumulate == 1)
+		isEmpty := emitter.events[emitter.events_head + 1].typ == yaml_DOCUMENT_END_EVENT
 
 		if event.version_directive != nil {
 			if !emitter.analyzeVersionDirective(event.version_directive) {
@@ -452,12 +455,15 @@ func (emitter *yamlEmitter) emitDocumentStart(event *yamlEvent, first bool) bool
 			if !emitter.processHeadComment() {
 				return false
 			}
-			if !emitter.putLineBreak() {
+			if !isEmpty && !emitter.putLineBreak() {
 				return false
 			}
 		}
 
 		emitter.state = yaml_EMIT_DOCUMENT_CONTENT_STATE
+		if isEmpty {
+			emitter.state = yaml_EMIT_DOCUMENT_END_STATE
+		}
 		return true
 	}
 
